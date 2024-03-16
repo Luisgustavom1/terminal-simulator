@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"io"
 	"os"
 	"os/exec"
 	"time"
@@ -8,18 +10,18 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/creack/pty"
 )
+
+const MAX_BUFFER_SIZE = 16
 
 func main() {
 	a := app.New()
 	w := a.NewWindow("luiserm")
 
 	ui := widget.NewTextGrid()
-	ui.SetText("I'm on a terminal")
 
 	c := exec.Command("/bin/bash")
 	p, err := pty.Start(c)
@@ -37,28 +39,58 @@ func main() {
 	}
 
 	onTypedRune := func(r rune) {
-		_, _ = p.Write([]byte(string(r)))
+		_, _ = p.WriteString(string(r))
 	}
 
 	w.Canvas().SetOnTypedKey(onTypedKey)
 	w.Canvas().SetOnTypedRune(onTypedRune)
 
+	buffer := [][]rune{}
+	reader := bufio.NewReader(p)
+
+	// This go routine reads from the pty
 	go func() {
+		line := []rune{}
+		buffer = append(buffer, line)
 		for {
-			time.Sleep(1 * time.Second)
-			b := make([]byte, 256)
-			_, err := p.Read(b)
+			r, _, err := reader.ReadRune()
+
 			if err != nil {
-				fyne.LogError("Failed to read pty", err)
+				if err == io.EOF {
+					return
+				}
+				os.Exit(1)
 			}
 
-			ui.SetText(string(b))
+			line = append(line, r)
+			buffer[len(buffer)-1] = line
+
+			if r == '\n' {
+				if len(buffer) > MAX_BUFFER_SIZE {
+					buffer = buffer[1:]
+				}
+
+				line = []rune{}
+				buffer = append(buffer, line)
+			}
  		}
 	}()
 
+		go func() {
+			for {
+				time.Sleep(100 * time.Millisecond)
+				ui.SetText("")
+				lines := ""
+				for _, line := range buffer {
+					lines += string(line)
+				}
+				ui.SetText(lines)
+			}
+		}()
+
 	w.SetContent(
-		container.New(
-			layout.NewGridWrapLayout(fyne.NewSize(420, 200)),
+		container.NewVBox(
+			container.NewGridWrap(fyne.NewSize(420, 200)),
 			ui,
 		),
 	)
