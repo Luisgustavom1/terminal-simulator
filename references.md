@@ -1,2 +1,3 @@
 - https://ishuah.com/2021/03/10/build-a-terminal-emulator-in-100-lines-of-go/
 - https://ishuah.com/2021/02/04/understanding-the-linux-tty-subsystem/
+- https://www.vivaolinux.com.br/artigo/Brincando-com-pseudoterminais-e-redirecionamentos

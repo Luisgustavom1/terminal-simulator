@@ -1,0 +1,1 @@
+![pseudoterminais](image.png)
